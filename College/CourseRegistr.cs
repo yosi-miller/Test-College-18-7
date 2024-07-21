@@ -19,8 +19,8 @@ namespace College
         {
             string course = lblCourceName.Text;
             string student = lblStudentName.Text;
-            if (lblCourceName.Text == "בחר שם סטודנט" ||
-                lblStudentName.Text == "בחר שם קורס")
+            if (lblCourceName.Text == "בחר שם קורס" ||
+                lblStudentName.Text == "בחר שם סטודנט")
             {
                 MessageBox.Show("full all fild");
                 return;
@@ -52,11 +52,98 @@ namespace College
 
         private void ltsStudent_SelectedIndexChanged(object sender, EventArgs e)
         {
-            lblStudentName.Text = ltsStudent.SelectedItem.ToString();
+            // בדיקה אם לא נבחר תלמיד
+            if (ltsStudent.SelectedItem == null)
+            {
+                MessageBox.Show("נא בחר שם תלמיד");
+                return;
+            }
+
+            string studentName = ltsStudent.SelectedItem.ToString();
+            lblStudentName.Text = studentName;
+
+            int totalToPay = toPay(studentName);
+            int totalPaid = toPaymed(studentName);
+
+            Console.WriteLine($"Total to pay: {totalToPay}");
+            Console.WriteLine($"Total paid: {totalPaid}");
+
+            // הצגת המידע למשתמש בתיבת טקסט
+            lblPaymed.Text = (totalToPay - totalPaid).ToString();
+
+        }
+
+        // מחזיר את הסכום שהתלמיד כבר שילם
+        private int toPaymed(string studentName)
+        {
+            string query = @"SELECT SUM(pay.payment)
+                            FROM pay
+                            INNER JOIN student
+                            ON pay.student_id = student.id
+                            WHERE pay.student_id = (SELECT id FROM student WHERE student_name = @studentName) ";
+
+            int result = 0;
+            if (MainFormRefrens.connectDb())
+            {
+                // create command var
+                SqlCommand cmd = new SqlCommand(query, MainFormRefrens.connection);
+                cmd.Parameters.AddWithValue("@studentName", studentName);
+                try
+                {
+                    result = (int)cmd.ExecuteScalar();
+                }
+                catch
+                {
+                    result = 0;
+                }
+                finally
+                {
+                    MainFormRefrens.disConnectDb();
+                }
+            }
+            return result;
+        }
+
+        // מחזיר את הסכום הכולל שהלקוח התחייב לשלם על הקורסים - ולא את יתרת החוב 
+        private int toPay(string studentName)
+        {
+            string query = @"SELECT SUM(courses.price)
+                            FROM courses
+                            INNER JOIN student_of_course
+                            ON student_of_course.course_id = courses.id
+                            WHERE student_of_course.student_id = (SELECT id FROM student WHERE student_name = @studentName)
+                            ";
+
+            int result = 0;
+            if (MainFormRefrens.connectDb())
+            {
+                // create command var
+                SqlCommand cmd = new SqlCommand(query, MainFormRefrens.connection);
+                cmd.Parameters.AddWithValue("@studentName", studentName);
+                try
+                {
+                    result = (int)cmd.ExecuteScalar();
+                }
+                catch
+                {
+                    result = 0;
+                }
+                finally
+                {
+                    MainFormRefrens.disConnectDb();
+                }
+            }
+            return result;
         }
 
         private void ltsCourses_SelectedIndexChanged(object sender, EventArgs e)
         {
+            // בדיקה אם לא נבחר קורס
+            if (ltsStudent.SelectedItem == null)
+            {
+                MessageBox.Show("נא בחר שם קורס");
+                return;
+            }
             lblCourceName.Text = ltsCourses.SelectedItem.ToString();
         }
 
@@ -115,7 +202,6 @@ namespace College
                 }
                 MainFormRefrens.disConnectDb();
             }
-
         }
     }
 }
